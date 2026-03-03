@@ -15,34 +15,34 @@ def readconfig(config_file) :
     config_parser = configparser.ConfigParser()
     config_parser.read(config_file)
     cfg = {}
-    cfg['llm_path'] = config_parser['llm_path']
-    cfg['adapter_ckpt'] = config_parser['adapter_ckpt']
-    cfg['d_model'] = config_parser['d_model']
-    cfg['timesteps'] = config_parser['timesteps']
-    cfg['offset'] = config_parser['offset']
-    cfg['traj_cordinate_dim'] = config_parser['traj_cordinate_dim']
-    cfg['num_heads'] = config_parser['num_heads']
-    cfg['num_layers'] = config_parser['num_layers']
-    cfg['vqa_dir'] = config_parser['vqa_dir']
-    cfg['trajectory_dir'] = config_parser['trajectory_dir']
-    cfg['epoches'] = config_parser['epoches']
+    cfg['llm_path'] = config_parser["Train"]['llm_path']
+    cfg['adapter_ckpt'] = config_parser["Train"]['adapter_ckpt']
+    cfg['d_model'] = config_parser.getint("Train", 'd_model')
+    cfg['timesteps'] = config_parser.getint("Train", 'timesteps')
+    cfg['offset'] = config_parser.getfloat("Train", "offset")
+    cfg['traj_cordinate_dim'] = config_parser.getint("Train", 'traj_cordinate_dim')
+    cfg['num_heads'] = config_parser.getint("Train", 'num_heads')
+    cfg['num_layers'] = config_parser.getint("Train", 'num_layers')
+    cfg['dataset'] = config_parser["Train"]['dataset']
+    cfg['epoches'] = config_parser.getint("Train", 'epoches')
+    cfg['freeze_vlm'] = config_parser.getboolean("Train", 'freeze_vlm')
     return  cfg
 
 if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument('--config', type=str)
     args = arg_parser.parse_args()
-    cfg = readconfig(args.config)
-    vqa_dir = cfg['vqa_dir']
-    trajectory_dir = cfg['trajectory_dir']
+    config_file = '/home/huangweihao/swift/QwenVLA/train_config.ini'
+    cfg = readconfig(config_file)
+    dataset = cfg['dataset']
     epoches = cfg['epoches']
 
     qwen_drive_vla = QwenDriveVLA(cfg)
     qwen_drive_vla.to(device='cuda', dtype=torch.float16)
     scheduler = Scheduler(cfg)
     criterion = nn.MSELoss()
-    train_dataset = VLADataset(vqa_dir, trajectory_dir)
-    train_dataloader = DataLoader(train_dataset, batch_size=4, shuffle=True)
+    train_dataset = VLADataset(dataset)
+    train_dataloader = DataLoader(train_dataset, batch_size=1, shuffle=True, collate_fn=lambda x: x[0])
     optimizer = optim.Adam(qwen_drive_vla.parameters(), lr=0.0001)
     for i in range(epoches):
         for data in train_dataloader:
@@ -51,6 +51,7 @@ if __name__ == '__main__':
             timestep = torch.randint(0, 50, (1,))
             noisy_trajectory, eps_gt = scheduler.add_noise(gt_trajectory, timestep)
             eps_gt = eps_gt.to(dtype=torch.float16, device='cuda')
+            timestep.to(device='cuda', dtype=torch.float16)
             eps_predicted = qwen_drive_vla(timestep, noisy_trajectory, message).to(dtype=torch.float16, device='cuda')
             loss = criterion(eps_gt, eps_predicted)
             optimizer.zero_grad()

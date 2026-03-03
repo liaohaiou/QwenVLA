@@ -36,7 +36,7 @@ class Scheduler:
         if eps is None:
             eps = torch.randn_like(x0)
 
-        ab = self.alphabar[t].view(*([1] * (x0.ndim - 1)), 1)  # broadcast
+        ab = self.alphabar[t].view(*([1] * (x0.ndim - 1)), 1).to(device=x0.device, dtype=x0.dtype) # broadcast
         xt = torch.sqrt(ab) * x0.float() + torch.sqrt(1.0 - ab) * eps
         return xt, eps
 

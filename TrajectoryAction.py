@@ -29,7 +29,8 @@ class SinusoidalPositionEmbedding(nn.Module):
     def __init__(self, max_len, d_model):
         super().__init__()
         pe = torch.zeros(max_len, d_model)
-        numerator = torch.exp(-torch.log(10000)*(torch.arange(0, d_model, 2)/d_model))
+
+        numerator = torch.exp(-torch.log(torch.tensor(10000))*(torch.arange(0, d_model, 2)/d_model))
         denominator = torch.arange(0, max_len).float().unsqueeze(1) * numerator
         pe[:, 0::2] = torch.sin(numerator * denominator)
         pe[:, 1::2] = torch.cos(numerator * denominator)

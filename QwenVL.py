@@ -5,14 +5,15 @@ import torch.nn as nn
 
 class QwenVL(nn.Module):
     def __init__(self, cfg: dict):
+        super().__init__()
         model_dir = cfg['llm_path']
         adapter_ckpt = cfg['adapter_ckpt']
         d_model = cfg['d_model']
-        self.qwenvl = model = Qwen3VLForConditionalGeneration.from_pretrained(
-        model_dir, device_map="auto",)
+        self.qwenvl = Qwen3VLForConditionalGeneration.from_pretrained(
+        model_dir).to('cuda')
         self.processor = AutoProcessor.from_pretrained(model_dir)
-        self.model = PeftModel.from_pretrained(self.qwenvl, adapter_ckpt)
-        vlm_hidden_size = self.qwenvl.config.cross_attention_hidden_size
+        self.model = PeftModel.from_pretrained(self.qwenvl, adapter_ckpt).to('cuda')
+        vlm_hidden_size = self.qwenvl.config.text_config.hidden_size
         self.out = nn.Linear(vlm_hidden_size, d_model)
 
 
@@ -35,4 +36,4 @@ class QwenVL(nn.Module):
             out_ids[len(in_ids):] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
         ]
 
-        return self.out(generated_ids)
+        return self.out(generated_ids_trimmed[0])
